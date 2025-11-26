@@ -23,7 +23,7 @@ export function EquipmentAlert({
 }: EquipmentAlertProps) {
   const variantStyles = {
     warning: {
-      card: "bg-white border-gray-200",
+      card: "bg-white border-gray-200 hover:bg-gray-50 hover:scale-101 ease-in-out duration-150",
       icon: "text-yellow-500",
       badge: "bg-yellow-100 text-yellow-800 hover:bg-yellow-100",
       descriptionText: "text-yellow-600",
@@ -31,7 +31,7 @@ export function EquipmentAlert({
       actionText: "text-gray-700",
     },
     critical: {
-      card: "bg-white border-gray-200",
+      card: "bg-white border-gray-200 hover:bg-gray-50 hover:scale-101 ease-in-out duration-150",
       icon: "text-red-500",
       badge: "bg-red-100 text-red-800 hover:bg-red-100",
       descriptionText: "text-red-600",
@@ -39,7 +39,7 @@ export function EquipmentAlert({
       actionText: "text-gray-700",
     },
     fatal: {
-      card: "bg-white border-gray-200",
+      card: "bg-white border-gray-200 hover:bg-gray-50 hover:scale-101 ease-in-out duration-150",
       icon: "text-red-600",
       badge: "bg-red-200 text-red-900 hover:bg-red-200",
       descriptionText: "text-red-700",

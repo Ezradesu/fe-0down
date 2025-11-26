@@ -5,12 +5,21 @@ import { EquipmentAlert } from "@/components/equipment-alert";
 import { RecommendedActionsHeader } from "@/components/recommended-action";
 import { TextLoop } from "@/components/ui/text-loop";
 import { Chat } from "@/components/ui/chat";
-import { Message } from "@/components/ui/chat-message"; // <-- Pastikan ini ada
+import { Message } from "@/components/ui/chat-message";
 import { supabase } from "@/lib/supabase";
 import Header from "@/components/header";
-import { Wrench } from "lucide-react";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationPrevious,
+  PaginationNext,
+} from "@/components/ui/pagination";
+import { Skeleton } from "@/components/ui/skeleton";
+import api from "@/lib/api"; // ✅ Menggunakan Axios Instance
 
-// Tipe untuk Alert (Sama seperti sebelumnya)
+// Tipe untuk Alert
 type TicketUI = {
   id: number;
   equipmentName: string;
@@ -22,11 +31,25 @@ type TicketUI = {
 
 export default function Home() {
   const [alerts, setAlerts] = useState<TicketUI[]>([]);
-  // Inisialisasi messages dengan array kosong bertipe Message[]
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState("");
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoadingAlerts, setIsLoadingAlerts] = useState(true);
+  const ITEMS_PER_PAGE = 5;
+
+  const totalPages = Math.ceil(alerts.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const currentAlerts = alerts.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
 
   useEffect(() => {
     // Setup Session & Fetch Data
@@ -41,8 +64,7 @@ export default function Home() {
   }, []);
 
   const fetchAlerts = async () => {
-    // ... (Logika fetch alerts sama seperti sebelumnya) ...
-    // Saya persingkat demi fokus ke Chatbot
+    setIsLoadingAlerts(true);
     const { data: dbData } = await supabase
       .from("failure_ticket")
       .select("*")
@@ -69,10 +91,11 @@ export default function Home() {
       });
       setAlerts(formattedAlerts);
     }
+    setIsLoadingAlerts(false);
   };
 
   const fetchChatHistory = async (sessId: string) => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("chat_logs")
       .select("*")
       .eq("session_id", sessId)
@@ -81,12 +104,11 @@ export default function Home() {
     if (data) {
       const formattedMessages: Message[] = [];
       data.forEach((log: any) => {
-        // Format harus sesuai tipe Message dari shadcn-chatbot-kit
         formattedMessages.push({
           id: `u-${log.id}`,
           role: "user",
           content: log.user_query,
-          createdAt: new Date(log.timestamp), // Opsional: Tambahkan tanggal jika ada
+          createdAt: new Date(log.timestamp),
         });
         formattedMessages.push({
           id: `b-${log.id}`,
@@ -99,12 +121,12 @@ export default function Home() {
     }
   };
 
-  // --- FUNGSI UTAMA YANG DIPERBAIKI ---
+  // --- FUNGSI UTAMA YANG DIUPDATE DENGAN AXIOS ---
   const handleSubmit = async (e?: { preventDefault?: () => void }) => {
     e?.preventDefault();
     if (!input.trim()) return;
 
-    // 1. Buat object message baru
+    // 1. Optimistic UI Update
     const userMsg: Message = {
       id: Date.now().toString(),
       role: "user",
@@ -112,26 +134,19 @@ export default function Home() {
       createdAt: new Date(),
     };
 
-    // 2. Update State Manual (Optimistic UI)
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setIsLoading(true);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-
-      const res = await fetch(`${apiUrl}/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: userMsg.content,
-          session_id: sessionId,
-        }),
+      // 2. Menggunakan Axios Instance 'api'
+      // - URL otomatis digabung dengan baseURL dari lib/api.ts
+      // - Tidak perlu header manual 'Content-Type'
+      // - Tidak perlu JSON.stringify
+      const { data } = await api.post("/chat", {
+        message: userMsg.content,
+        session_id: sessionId,
       });
-
-      if (!res.ok) throw new Error("Server Error");
-
-      const data = await res.json();
 
       if (data.status === "success") {
         const botMsg: Message = {
@@ -144,11 +159,10 @@ export default function Home() {
       }
     } catch (err) {
       console.error("Failed to connect:", err);
-      // Opsional: Kasih pesan error dummy dari bot
       const errorMsg: Message = {
         id: Date.now().toString(),
         role: "assistant",
-        content: "Maaf, terjadi kesalahan koneksi ke server.",
+        content: "Maaf, terjadi kesalahan koneksi ke server AI.",
       };
       setMessages((prev) => [...prev, errorMsg]);
     } finally {
@@ -157,30 +171,92 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen  p-6">
-      {/* Header */}
+    <main className="min-h-screen p-6 bg-gray-50/50">
+      {/* Header Component */}
       <Header />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Kolom Kiri: Alerts */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+        {/* Kolom Kiri: Alerts dengan Pagination & Skeleton */}
         <div className="lg:col-span-2 space-y-4">
           <RecommendedActionsHeader />
           <div className="space-y-3">
-            {alerts.length === 0 ? (
-              <p className="text-gray-500 italic p-4 bg-white rounded-lg border text-center">
+            {isLoadingAlerts ? (
+              // Tampilan Loading (Skeleton)
+              Array.from({ length: ITEMS_PER_PAGE }).map((_, index) => (
+                <div key={index} className="p-4 bg-white rounded-lg border flex flex-col gap-2 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="h-6 w-1/3" />
+                    <Skeleton className="h-6 w-20" />
+                  </div>
+                  <Skeleton className="h-4 w-1/2" />
+                  <Skeleton className="h-10 w-full mt-2" />
+                </div>
+              ))
+            ) : alerts.length === 0 ? (
+              // Tampilan Kosong
+              <p className="text-gray-500 italic p-4 bg-white rounded-lg border text-center shadow-sm">
                 System Healthy. No active failure tickets.
               </p>
             ) : (
-              alerts.map((alert) => (
-                <EquipmentAlert
-                  key={alert.id}
-                  equipmentName={alert.equipmentName}
-                  variant={alert.variant}
-                  description={alert.description}
-                  action={alert.action}
-                  actionButtonLabel="Start Repair"
-                />
-              ))
+              // Tampilan Data Alerts
+              <>
+                {currentAlerts.map((alert) => (
+                  <EquipmentAlert
+                    key={alert.id}
+                    equipmentName={alert.equipmentName}
+                    variant={alert.variant}
+                    description={alert.description}
+                    action={alert.action}
+                    actionButtonLabel="Start Repair"
+                  />
+                ))}
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="mt-4 flex justify-center">
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handlePageChange(currentPage - 1);
+                            }}
+                            className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                          />
+                        </PaginationItem>
+
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                          <PaginationItem key={page}>
+                            <PaginationLink
+                              href="#"
+                              isActive={page === currentPage}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                handlePageChange(page);
+                              }}
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        ))}
+
+                        <PaginationItem>
+                          <PaginationNext
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handlePageChange(currentPage + 1);
+                            }}
+                            className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -192,7 +268,6 @@ export default function Home() {
               <span>Ask Copilot</span>
               <span className="text-gray-300 font-light">|</span>
 
-              {/* Ini TextLoop-nya */}
               <TextLoop className="text-sm font-normal text-gray-500">
                 {[
                   "Ready to assist",
@@ -208,7 +283,7 @@ export default function Home() {
             </h2>
           </div>
 
-          <div className="flex-1 p-4 bg-white rounded-xl border shadow-sm overflow-hidden flex flex-col">
+          <div className="flex-1 bg-white rounded-xl border shadow-sm overflow-hidden flex flex-col p-4">
             <Chat
               className="h-full"
               messages={messages}
