@@ -17,7 +17,7 @@ import {
   PaginationNext,
 } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
-import api from "@/lib/api"; // ✅ Menggunakan Axios Instance
+import api from "@/lib/api";
 
 // Tipe untuk Alert
 type TicketUI = {
@@ -121,9 +121,8 @@ export default function Home() {
     }
   };
 
-  // --- FUNGSI UTAMA YANG DIUPDATE DENGAN AXIOS ---
   const handleSubmit = async (e?: { preventDefault?: () => void }) => {
-    e?.preventDefault();
+    e?.preventDefault?.();
     if (!input.trim()) return;
 
     // 1. Optimistic UI Update
@@ -139,10 +138,6 @@ export default function Home() {
     setIsLoading(true);
 
     try {
-      // 2. Menggunakan Axios Instance 'api'
-      // - URL otomatis digabung dengan baseURL dari lib/api.ts
-      // - Tidak perlu header manual 'Content-Type'
-      // - Tidak perlu JSON.stringify
       const { data } = await api.post("/chat", {
         message: userMsg.content,
         session_id: sessionId,
