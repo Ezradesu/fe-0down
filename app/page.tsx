@@ -1,9 +1,19 @@
-import Image from "next/image";
-
+import Hero from '@/components/landing/Hero';
+import Header from '@/components/header';
+import { FeaturesGrid } from '@/components/landing/FeaturesGrid';
+import { HowItWorks } from '@/components/landing/HowItWorks';
+import { ScrollReveal } from '@/components/animations';
 export default function Home() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <h1>kotnol</h1>
-    </div>
+    <>
+      <Header />
+      <ScrollReveal delay={0.2} direction='up'>
+        <Hero />
+      </ScrollReveal>
+      <ScrollReveal delay={0.2} direction='up'>
+        <FeaturesGrid />
+      </ScrollReveal>
+        <HowItWorks />
+    </>
   );
 }
