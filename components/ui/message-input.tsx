@@ -14,7 +14,7 @@ import {
 import { omit } from "remeda";
 
 import { cn } from "@/lib/utils";
-import { useAudioRecording } from "@/hooks/use-audio-recording";
+
 import { useAutosizeTextArea } from "@/hooks/use-autosize-textarea";
 
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,6 @@ interface MessageInputBaseProps
   stop?: () => void;
   isGenerating: boolean;
   enableInterrupt?: boolean;
-  transcribeAudio?: (blob: Blob) => Promise<string>;
 }
 
 interface MessageInputWithoutAttachmentProps extends MessageInputBaseProps {
@@ -53,26 +52,13 @@ export function MessageInput({
   stop,
   isGenerating,
   enableInterrupt = true,
-  transcribeAudio,
+  value,
   ...props
 }: MessageInputProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [showInterruptPrompt, setShowInterruptPrompt] = useState(false);
 
-  const {
-    isListening,
-    isSpeechSupported,
-    isRecording,
-    isTranscribing,
-    audioStream,
-    toggleListening,
-    stopRecording,
-  } = useAudioRecording({
-    transcribeAudio,
-    onTranscriptionComplete: (text) => {
-      props.onChange?.({ target: { value: text } } as any);
-    },
-  });
+
 
   useEffect(() => {
     if (!isGenerating) {
@@ -153,7 +139,7 @@ export function MessageInput({
           setShowInterruptPrompt(false);
           event.currentTarget.form?.requestSubmit();
         } else if (
-          props.value ||
+          value ||
           (props.allowAttachments && props.files?.length)
         ) {
           setShowInterruptPrompt(true);
@@ -174,16 +160,16 @@ export function MessageInput({
     if (textAreaRef.current) {
       setTextAreaHeight(textAreaRef.current.offsetHeight);
     }
-  }, [props.value]);
+  }, [value]);
 
   const showFileList =
     props.allowAttachments && props.files && props.files.length > 0;
 
   useAutosizeTextArea({
-    ref: textAreaRef,
+    ref: textAreaRef as any,
     maxHeight: 240,
     borderWidth: 1,
-    dependencies: [props.value, showFileList],
+    dependencies: [value, showFileList],
   });
 
   return (
@@ -200,10 +186,7 @@ export function MessageInput({
         />
       )}
 
-      <RecordingPrompt
-        isVisible={isRecording}
-        onStopRecording={stopRecording}
-      />
+
 
       <div className="relative flex w-full items-center space-x-2">
         <div className="relative flex-1">
@@ -221,6 +204,7 @@ export function MessageInput({
             {...(props.allowAttachments
               ? omit(props, ["allowAttachments", "files", "setFiles"])
               : omit(props, ["allowAttachments"]))}
+            value={value}
           />
 
           {props.allowAttachments && (
@@ -297,7 +281,7 @@ export function MessageInput({
             size="icon"
             className="h-8 w-8 transition-opacity"
             aria-label="Send message"
-            disabled={props.value === "" || isGenerating}
+            disabled={value === "" || isGenerating}
           >
             <ArrowUp className="h-5 w-5" />
           </Button>
@@ -342,118 +326,9 @@ function FileUploadOverlay({ isDragging }: FileUploadOverlayProps) {
   );
 }
 
-function showFileUploadDialog() {
-  const input = document.createElement("input");
-
-  input.type = "file";
-  input.multiple = true;
-  input.accept = "*/*";
-  input.click();
-
-  return new Promise<File[] | null>((resolve) => {
-    input.onchange = (e) => {
-      const files = (e.currentTarget as HTMLInputElement).files;
-
-      if (files) {
-        resolve(Array.from(files));
-        return;
-      }
-
-      resolve(null);
-    };
-  });
-}
-
-function TranscribingOverlay() {
-  return (
-    <motion.div
-      className="flex h-full w-full flex-col items-center justify-center rounded-xl bg-background/80 backdrop-blur-sm"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
-    >
-      <div className="relative">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <motion.div
-          className="absolute inset-0 h-8 w-8 animate-pulse rounded-full bg-primary/20"
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1.2, opacity: 1 }}
-          transition={{
-            duration: 1,
-            repeat: Infinity,
-            repeatType: "reverse",
-            ease: "easeInOut",
-          }}
-        />
-      </div>
-      <p className="mt-4 text-sm font-medium text-muted-foreground">
-        Transcribing audio...
-      </p>
-    </motion.div>
-  );
-}
-
-interface RecordingPromptProps {
-  isVisible: boolean;
-  onStopRecording: () => void;
-}
-
-function RecordingPrompt({ isVisible, onStopRecording }: RecordingPromptProps) {
-  return (
-    <AnimatePresence>
-      {isVisible && (
-        <motion.div
-          initial={{ top: 0, filter: "blur(5px)" }}
-          animate={{
-            top: -40,
-            filter: "blur(0px)",
-            transition: {
-              type: "spring",
-              filter: { type: "tween" },
-            },
-          }}
-          exit={{ top: 0, filter: "blur(5px)" }}
-          className="absolute left-1/2 flex -translate-x-1/2 cursor-pointer overflow-hidden whitespace-nowrap rounded-full border bg-background py-1 text-center text-sm text-muted-foreground"
-          onClick={onStopRecording}
-        >
-          <span className="mx-2.5 flex items-center">
-            <Info className="mr-2 h-3 w-3" />
-            Click to finish recording
-          </span>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
-
-interface RecordingControlsProps {
-  isRecording: boolean;
-  isTranscribing: boolean;
-  audioStream: MediaStream | null;
-  textAreaHeight: number;
-  onStopRecording: () => void;
-}
-
-function RecordingControls({
-  isRecording,
-  isTranscribing,
-  audioStream,
-  textAreaHeight,
-  onStopRecording,
-}: RecordingControlsProps) {
 
 
-  if (isTranscribing) {
-    return (
-      <div
-        className="absolute inset-[1px] z-50 overflow-hidden rounded-xl"
-        style={{ height: textAreaHeight - 2 }}
-      >
-        <TranscribingOverlay />
-      </div>
-    );
-  }
 
-  return null;
-}
+
+
+

@@ -1,0 +1,8 @@
+﻿components/ui/markdown-renderer.tsx(188,31): error TS2503: Cannot find namespace 'JSX'.
+components/ui/markdown-renderer.tsx(190,6): error TS2604: JSX element type 'Tag' does not have any construct or call signatures.
+components/ui/markdown-renderer.tsx(190,6): error TS2786: 'Tag' cannot be used as a JSX component.
+  Its type 'string | number | symbol' is not a valid JSX element type.
+    Type 'number' is not assignable to type 'ElementType'.
+components/ui/message-input.tsx(169,5): error TS2322: Type 'RefObject<HTMLTextAreaElement | null>' is not assignable to type 'RefObject<HTMLTextAreaElement>'.
+  Type 'HTMLTextAreaElement | null' is not assignable to type 'HTMLTextAreaElement'.
+    Type 'null' is not assignable to type 'HTMLTextAreaElement'.
